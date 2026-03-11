@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>POS 시스템 - 매장판매관리</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f8f9fa; margin: 0; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .container { padding: 30px; max-width: 1000px; margin: auto; }
+        .login-box { background: white; padding: 40px; border-radius: 10px; width: 350px; margin: 100px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #f1f3f5; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn-download { background: #e67e22; margin-bottom: 15px; width: auto; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>🛒 POS RETAIL SYSTEM (매장용)</h1></div>
+
+    <div class="container">
+        <div id="login-section" class="login-box">
+            <h2>POS 로그인</h2>
+            <input type="text" id="uid" placeholder="아이디 (admin)">
+            <input type="password" id="upw" placeholder="비밀번호 (1234)">
+            <button onclick="handleLogin()">시스템 접속</button>
+        </div>
+
+        <div id="main-section" class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>실시간 매장 판매 현황</h3>
+                <button class="btn-download" onclick="alert('POS_Data_20260311.csv 다운로드 중...')">CSV 엑셀 다운로드</button>
+            </div>
+            <table>
+                <thead><tr><th>품목코드</th><th>판매량</th><th>매장명</th></tr></thead>
+                <tbody id="pos-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let posToken = "";
+        async function handleLogin() {
+            const id = document.getElementById('uid').value;
+            const pw = document.getElementById('upw').value;
+            const res = await fetch('/api/login/pos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: id, password: pw })
+            });
+            const data = await res.json();
+            if (data.success) {
+                posToken = data.token;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('main-section').style.display = 'block';
+                fetchSales();
+            } else { alert("로그인 실패"); }
+        }
+
+        async function fetchSales() {
+            const res = await fetch('/api/pos/sales', { headers: { 'Authorization': `Bearer ${posToken}` }});
+            const sales = await res.json();
+            document.getElementById('pos-table-body').innerHTML = sales.map(s => `
+                <tr><td>${s.품목코드}</td><td>${s.판매수량}</td><td>${s.매장명}</td></tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
