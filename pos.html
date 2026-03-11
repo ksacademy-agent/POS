@@ -12,36 +12,47 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
         th { background: #f1f3f5; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        .btn-download { background: #e67e22; margin-bottom: 15px; width: auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn { background: #2c3e50; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; }
+        
+        /* 페이지네이션 스타일 */
+        .pagination { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 5px; }
+        .pagination button { border: 1px solid #ddd; background: white; padding: 5px 12px; cursor: pointer; border-radius: 4px; }
+        .pagination button.active { background: #2c3e50; color: white; border-color: #2c3e50; }
+        .pagination button:disabled { background: #eee; cursor: not-allowed; color: #999; }
+        .pagination button:hover:not(:disabled) { background: #f1f3f5; }
     </style>
 </head>
 <body>
-    <div class="header"><h1>🛒 POS RETAIL SYSTEM (매장용)</h1></div>
-
+    <div class="header"><h1>🛒 POS Sales Management</h1></div>
     <div class="container">
         <div id="login-section" class="login-box">
             <h2>POS 로그인</h2>
-            <input type="text" id="uid" placeholder="아이디 (admin)">
-            <input type="password" id="upw" placeholder="비밀번호 (1234)">
-            <button onclick="handleLogin()">시스템 접속</button>
+            <input type="text" id="uid" placeholder="아이디" value="admin">
+            <input type="password" id="upw" placeholder="비밀번호" value="1234">
+            <button class="btn" onclick="handleLogin()">로그인</button>
         </div>
 
         <div id="main-section" class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>실시간 매장 판매 현황</h3>
-                <button class="btn-download" onclick="alert('POS_Data_20260311.csv 다운로드 중...')">CSV 엑셀 다운로드</button>
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+                <h3>실시간 판매 현황</h3>
+                <button style="padding: 5px 10px; cursor:pointer;" onclick="alert('CSV 다운로드 중...')">CSV 엑셀 다운로드</button>
             </div>
             <table>
                 <thead><tr><th>품목코드</th><th>판매량</th><th>매장명</th></tr></thead>
                 <tbody id="pos-table-body"></tbody>
             </table>
+            <div id="pagination" class="pagination"></div>
         </div>
     </div>
 
     <script>
         let posToken = "";
+        let allSalesData = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        const pageGroupSize = 5;
+
         async function handleLogin() {
             const id = document.getElementById('uid').value;
             const pw = document.getElementById('upw').value;
@@ -61,10 +72,63 @@
 
         async function fetchSales() {
             const res = await fetch('/api/pos/sales', { headers: { 'Authorization': `Bearer ${posToken}` }});
-            const sales = await res.json();
-            document.getElementById('pos-table-body').innerHTML = sales.map(s => `
+            allSalesData = await res.json();
+            renderTable();
+        }
+
+        function renderTable() {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const paginatedItems = allSalesData.slice(start, end);
+
+            const tbody = document.getElementById('pos-table-body');
+            tbody.innerHTML = paginatedItems.map(s => `
                 <tr><td>${s.품목코드}</td><td>${s.판매수량}</td><td>${s.매장명}</td></tr>
             `).join('');
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const paginationEl = document.getElementById('pagination');
+            paginationEl.innerHTML = "";
+            
+            const totalPages = Math.ceil(allSalesData.length / rowsPerPage);
+            const currentGroup = Math.ceil(currentPage / pageGroupSize);
+            const startPage = (currentGroup - 1) * pageGroupSize + 1;
+            const endPage = Math.min(startPage + pageGroupSize - 1, totalPages);
+
+            // 이전 버튼
+            const prevBtn = document.createElement('button');
+            prevBtn.innerText = "이전";
+            prevBtn.disabled = currentGroup === 1;
+            prevBtn.onclick = () => {
+                currentPage = startPage - 1;
+                renderTable();
+            };
+            paginationEl.appendChild(prevBtn);
+
+            // 번호 버튼
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('button');
+                btn.innerText = i;
+                if (i === currentPage) btn.classList.add('active');
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderTable();
+                };
+                paginationEl.appendChild(btn);
+            }
+
+            // 다음 버튼
+            const nextBtn = document.createElement('button');
+            nextBtn.innerText = "다음";
+            nextBtn.disabled = endPage === totalPages;
+            nextBtn.onclick = () => {
+                currentPage = endPage + 1;
+                renderTable();
+            };
+            paginationEl.appendChild(nextBtn);
         }
     </script>
 </body>
